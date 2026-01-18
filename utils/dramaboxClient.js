@@ -91,18 +91,59 @@ class DramaBoxClient {
 
     const response = await this.request('/he001/theater', data);
     
-    // Data ada di columnVoList[].bookList, bukan newTheaterList.records
-    const columnVoList = response.columnVoList || [];
+    // Log full response structure untuk debugging
+    console.log('📦 API Response keys:', Object.keys(response));
+    console.log('📦 Full Response:', JSON.stringify(response, null, 2));
     
-    // Flatten semua bookList dari semua column
-    const dramas = [];
-    for (const column of columnVoList) {
-      if (column.bookList && Array.isArray(column.bookList)) {
-        dramas.push(...column.bookList);
+    // Coba berbagai kemungkinan lokasi data
+    let dramas = [];
+    
+    // Option 1: columnVoList[].bookList
+    if (response.columnVoList && Array.isArray(response.columnVoList)) {
+      console.log(`🔍 Found columnVoList with ${response.columnVoList.length} columns`);
+      for (const column of response.columnVoList) {
+        if (column.bookList && Array.isArray(column.bookList)) {
+          dramas.push(...column.bookList);
+          console.log(`  ✅ Added ${column.bookList.length} dramas from column`);
+        }
       }
     }
     
-    console.log(`✅ Found ${dramas.length} dramas from ${columnVoList.length} columns`);
+    // Option 2: data.columnVoList[].bookList
+    if (dramas.length === 0 && response.data?.columnVoList) {
+      console.log('🔍 Trying data.columnVoList...');
+      for (const column of response.data.columnVoList) {
+        if (column.bookList && Array.isArray(column.bookList)) {
+          dramas.push(...column.bookList);
+        }
+      }
+    }
+    
+    // Option 3: newTheaterList.records
+    if (dramas.length === 0 && response.newTheaterList?.records) {
+      console.log('🔍 Trying newTheaterList.records...');
+      dramas = response.newTheaterList.records;
+    }
+    
+    // Option 4: data.newTheaterList.records
+    if (dramas.length === 0 && response.data?.newTheaterList?.records) {
+      console.log('🔍 Trying data.newTheaterList.records...');
+      dramas = response.data.newTheaterList.records;
+    }
+    
+    // Option 5: Direct data array
+    if (dramas.length === 0 && response.data && Array.isArray(response.data)) {
+      console.log('🔍 Found direct data array');
+      dramas = response.data;
+    }
+    
+    console.log(`✅ Final result: ${dramas.length} dramas found`);
+    if (dramas.length > 0) {
+      console.log('📚 First drama:', dramas[0]?.bookName || dramas[0]?.title || 'No name');
+    } else {
+      console.log('⚠️ No dramas found. Response structure might have changed.');
+    }
+    
     return dramas;
   }
 

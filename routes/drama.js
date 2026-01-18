@@ -1,7 +1,73 @@
 import express from 'express';
 import dramaboxClient from '../utils/dramaboxClient.js';
+import tokenManager from '../utils/tokenManager.js';
+import axios from 'axios';
 
 const router = express.Router();
+
+/**
+ * GET /api/debug
+ * Debug endpoint untuk troubleshooting
+ */
+router.get('/debug', async (req, res) => {
+  try {
+    // Get token
+    const tokenData = await tokenManager.getToken();
+    
+    // Test API call
+    const headers = {
+      'User-Agent': 'okhttp/4.10.0',
+      'Accept-Encoding': 'gzip',
+      'Content-Type': 'application/json',
+      'tn': `Bearer ${tokenData.token}`,
+      'version': '430',
+      'vn': '4.3.0',
+      'cid': 'DRA1000042',
+      'package-name': 'com.storymatrix.drama',
+      'apn': '1',
+      'device-id': tokenData.deviceid,
+      'language': 'in',
+      'current-language': 'in',
+      'p': '43',
+      'time-zone': '+0800'
+    };
+    
+    const apiResponse = await axios.post(
+      'https://sapi.dramaboxdb.com/drama-box/he001/theater',
+      {
+        newChannelStyle: 1,
+        isNeedRank: 1,
+        pageNo: 1,
+        index: 1,
+        channelId: 43
+      },
+      { headers, timeout: 15000 }
+    );
+    
+    res.json({
+      success: true,
+      tokenStatus: {
+        hasToken: !!tokenData.token,
+        hasDeviceId: !!tokenData.deviceid,
+        tokenLength: tokenData.token?.length
+      },
+      apiResponse: {
+        responseKeys: Object.keys(apiResponse.data),
+        hasColumnVoList: !!apiResponse.data.columnVoList,
+        hasData: !!apiResponse.data.data,
+        hasNewTheaterList: !!apiResponse.data.newTheaterList,
+        columnVoListLength: apiResponse.data.columnVoList?.length,
+        fullResponse: apiResponse.data
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
 
 /**
  * GET /api/latest
