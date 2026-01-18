@@ -1,29 +1,72 @@
-import dramaboxClient from './utils/dramaboxClient.js';
-
-console.log('🧪 Testing DramaBox API Client...\n');
+import axios from 'axios';
+import { token } from './get-token.js'; 
 
 try {
-  // Test 1: Get Latest
-  console.log('📺 Test 1: Get Latest Dramas');
-  const latest = await dramaboxClient.getLatest(1, 43);
-  console.log(`✅ Found ${latest.length} dramas`);
+  console.log('🔄 Fetching token...');
+  const gettoken = await token();
+  console.log('✅ Token received:', {
+    tokenLength: gettoken.token.length,
+    deviceId: gettoken.deviceid
+  });
   
-  if (latest.length > 0) {
-    console.log('\n📋 Sample Drama:');
-    const sample = latest[0];
-    console.log(`  - ID: ${sample.bookId}`);
-    console.log(`  - Title: ${sample.bookName}`);
-    console.log(`  - Chapters: ${sample.chapterCount}`);
-    console.log(`  - Views: ${sample.playCount}`);
+  const url = "https://sapi.dramaboxdb.com/drama-box/he001/theater";
+  
+  const headers = {
+    "User-Agent": "okhttp/4.10.0",
+    "Accept-Encoding": "gzip",
+    "Content-Type": "application/json",
+    "tn": `Bearer ${gettoken.token}`,
+    "version": "430",
+    "vn": "4.3.0",
+    "cid": "DRA1000042",
+    "package-name": "com.storymatrix.drama",
+    "apn": "1",
+    "device-id": gettoken.deviceid,
+    "language": "in",
+    "current-language": "in",
+    "p": "43",
+    "time-zone": "+0800",
+    "content-type": "application/json; charset=UTF-8"
+  };
+  
+  const data = {
+    newChannelStyle: 1,
+    isNeedRank: 1,
+    pageNo: 1,
+    index: 1,
+    channelId: 43
+  };
+  
+  console.log('\n🔄 Calling DramaBox API...');
+  const res = await axios.post(url, data, { headers });
+  
+  console.log('\n📦 Response Status:', res.status);
+  console.log('📦 Response Keys:', Object.keys(res.data));
+  console.log('\n📋 Full Response:');
+  console.log(JSON.stringify(res.data, null, 2));
+  
+  // Check for dramas in different locations
+  console.log('\n🔍 Checking data locations:');
+  console.log('- columnVoList exists:', !!res.data.columnVoList);
+  console.log('- data.columnVoList exists:', !!res.data.data?.columnVoList);
+  console.log('- newTheaterList exists:', !!res.data.newTheaterList);
+  console.log('- data.newTheaterList exists:', !!res.data.data?.newTheaterList);
+  
+  if (res.data.columnVoList) {
+    console.log('\n✅ Found columnVoList with', res.data.columnVoList.length, 'columns');
+    let totalDramas = 0;
+    res.data.columnVoList.forEach((column, idx) => {
+      const bookCount = column.bookList?.length || 0;
+      console.log(`  Column ${idx + 1}: ${bookCount} books`);
+      totalDramas += bookCount;
+    });
+    console.log(`\n📚 Total dramas found: ${totalDramas}`);
   }
   
-  // Test 2: Search
-  console.log('\n\n🔍 Test 2: Search "pewaris"');
-  const searchResults = await dramaboxClient.search('pewaris');
-  console.log(`✅ Found ${searchResults.length} results`);
-  
-  console.log('\n✅ All tests completed successfully!');
 } catch (error) {
-  console.error('\n❌ Test failed:', error.message);
-  process.exit(1);
+  console.error('\n❌ Error:', error.message);
+  if (error.response) {
+    console.error('Response status:', error.response.status);
+    console.error('Response data:', error.response.data);
+  }
 }
